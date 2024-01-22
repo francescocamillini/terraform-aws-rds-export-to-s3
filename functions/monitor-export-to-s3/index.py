@@ -12,6 +12,7 @@ summarized message out of it that it then publishes to a given SNS topic.
 logger = logging.getLogger()
 logger.setLevel(os.getenv("LOG_LEVEL", logging.INFO))
 
+
 def handler(event, context):
     if event["Records"][0]["EventSource"] != "aws:sns":
         logger.warning(
@@ -29,7 +30,7 @@ def handler(event, context):
     sourceType = message["detail"]["SourceType"]
     sourceId = message["detail"]["SourceIdentifier"]
     sourceArn = message["detail"]["SourceArn"]
-    dbName = os.environ['DB_NAME'].replace(' ', '').split(',')
+    dbName = os.environ["DB_NAME"].replace(" ", "").split(",")
 
     # Ref: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.Messages.html#USER_Events.Messages.snapshot
     # Ref: https://docs.amazonaws.cn/en_us/AmazonRDS/latest/AuroraUserGuide/USER_Events.Messages.html#USER_Events.Messages.cluster-snapshot
@@ -41,24 +42,24 @@ def handler(event, context):
         # RDS Aurora
         "RDS-EVENT-0162": "DB cluster snapshot export task failed",
         "RDS-EVENT-0163": "DB cluster snapshot export task canceled",
-        "RDS-EVENT-0164": "DB cluster snapshot export task completed"
+        "RDS-EVENT-0164": "DB cluster snapshot export task completed",
     }
 
     if eventId in supportedEvents.keys():
         for db in dbName:
-            matchSnapshotRegEx = "^rds:" + db + "-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$"
+            matchSnapshotRegEx = "^rds(:|-)" + db + "-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$"
             if re.match(matchSnapshotRegEx, sourceId):
                 messageTitle = supportedEvents[eventId]
                 messageBody = {
                     "SourceType": sourceType,
                     "SourceIdentifier": sourceId,
-                    "SourceArn": sourceArn
+                    "SourceArn": sourceArn,
                 }
-                response = boto3.client('sns').publish(
+                response = boto3.client("sns").publish(
                     TargetArn=os.environ["SNS_NOTIFICATIONS_TOPIC_ARN"],
                     Subject=messageTitle,
-                    Message=json.dumps({'default': json.dumps(messageBody)}),
-                    MessageStructure='json'
+                    Message=json.dumps({"default": json.dumps(messageBody)}),
+                    MessageStructure="json",
                 )
             else:
                 logger.info(f"Ignoring event notification for {sourceId} - {eventId}")
@@ -67,5 +68,3 @@ def handler(event, context):
     else:
         logger.info(f"Ignoring event notification for {sourceId} - {eventId}")
         logger.info(f"Function is configured to accept {supportedEvents} only")
-
-
